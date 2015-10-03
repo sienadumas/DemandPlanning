@@ -4,6 +4,7 @@
 import csv
 import datetime
 
+# data is a dictionary: item# -> date -> totalOrders
 def read_csv_data(file_name):
     input_file = csv.DictReader(open(file_name))
     data = dict([])
