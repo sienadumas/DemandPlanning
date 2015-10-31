@@ -8,12 +8,12 @@ def main():
     cycle = 60
     target = 72000
     pastOrders = read_csv_data("Plum_OrderData.csv")
-    #pastOrders = read_csv_data("C:\Users\Sasha\Dropbox\PlumShipment\Plum_OrderData.csv")
+
     
     delivery = dict([])
     inventory = target
     date = datetime.date(2013, 7, 29)
-    total_fulfillment = 0
+    total_fulfillment = 0.0
     for day in range(730):
         d = date+datetime.timedelta(days=day)
         if d in pastOrders[866]:
@@ -21,13 +21,16 @@ def main():
         else:
             order = 0
         (percentFulfilled, delivery) = manufacture(cycle, target,  day, inventory, delivery, order)
-        total_fulfillment+= percentFulfilled
+        total_fulfillment += percentFulfilled
         inv = (inventory-order)
         if day in delivery:
             inv += delivery[day]
         inventory = max(inv, 0)
-    print total_fulfillment / sum(pastOrders[866].values())
+    percentage_fulfilled = total_fulfillment / sum(pastOrders[866].values())
 
+
+
+   
 def manufacture(cycle, target, day, inventory, delivery, order):
     estimate = inventory - order
     for d in range(cycle):
@@ -48,6 +51,23 @@ def numberFulfilled(inventory, order):
     else:
         # return float(inventory) / order
         return inventory
+
+
+# pastOrders is a dictionary from item --> date ---> total order for that date
+# testDays is the number of days we want to use for test (these will be the last x days in data, not the first)
+def split_data(itemNumber, pastOrders, testDays):
+    itemOrders = pastOrders[itemNumber]
+    train = dict([])
+    test = dict([])
+    dates = itemOrders.keys()
+    dates.sort()
+    maxDate = dates[-1]-datetime.timedelta(days=testDays)
+    for d in dates:
+        if d <= maxDate:
+            train[d] = itemOrders[d]
+        else:
+            test[d] = itemOrders[d]
+    return train, test
 
 
 # omega gets the historical maximum
