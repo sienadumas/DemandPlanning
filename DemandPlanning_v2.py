@@ -9,39 +9,68 @@ def main():
     target = 72000
     pastOrders = read_csv_data("Plum_OrderData.csv")
 
+    train, test = split_data(866, pastOrders, 90)
+    train_dates, test_dates = sorted(train.keys()), sorted(test.keys())
     
     delivery = dict([])
     inventory = target
-    date = datetime.date(2013, 7, 29)
-    total_fulfillment = 0.0
-    for day in range(730):
-        d = date+datetime.timedelta(days=day)
-        if d in pastOrders[866]:
-            order = pastOrders[866][d]
+    start_date = train_dates[0]
+    end_date = train_dates[-1]
+    delta = end_date - start_date
+    total_fulfillment = 0.0    
+    for day in range(delta.days + 1):
+        d = start_date+datetime.timedelta(days=day)
+        if d in train:
+            order = train[d]
         else:
             order = 0
-        (percentFulfilled, delivery) = manufacture(cycle, target,  day, inventory, delivery, order)
+        (percentFulfilled, delivery) = manufacture(cycle, target,  d, inventory, delivery, order)
         total_fulfillment += percentFulfilled
         inv = (inventory-order)
-        if day in delivery:
-            inv += delivery[day]
+        if d in delivery:
+            inv += delivery[d]
         inventory = max(inv, 0)
-    percentage_fulfilled = total_fulfillment / sum(pastOrders[866].values())
+    percentage_fulfilled = total_fulfillment / sum(train.values())
 
+    print inventory
+    vector = produce_vector(train, inventory, delivery, cycle, train_dates[-1])
+    print vector
 
-
+def produce_vector(pastOrders, start_inventory, delivery, cycle_time, start_date):
+    inventory = start_inventory - pastOrders[start_date] + delivery[start_date] #if we only have 2 years of data why do we assume to have the orders to leave the warehouse on the first day after our data ends?
+    vector = []
+    days_with_orders = sorted(pastOrders.keys())
+    for cycle_size in range(cycle_time):
+        periods = len(days_with_orders) - cycle_size
+        numFulfilled = 0.0     
+        for day_index in range(periods):
+            day = days_with_orders[day_index]
+            total_orders = 0.0
+            
+            for i in range(cycle_size):
+                order_date = days_with_orders[day_index+i]
+                total_orders += pastOrders[order_date]
+                
+            if inventory >= total_orders:
+                numFulfilled += 1
+        vector.append(numFulfilled/periods)
+        inventory += delivery[start_date+datetime.timedelta(days=cycle_size+1)]
+    return vector
+        
    
 def manufacture(cycle, target, day, inventory, delivery, order):
     estimate = inventory - order
     for d in range(cycle):
-        if (day+d) in delivery:
-            estimate += delivery[day + d]
+        curr_day = day+datetime.timedelta(days=d)
+        if curr_day in delivery:
+            estimate += delivery[curr_day]
     if estimate < target:
-        delivery[day+cycle] = 30000
+        delivery[day+datetime.timedelta(days=cycle)] = 30000
     else:
-        delivery[day+cycle] = 0
+        delivery[day+datetime.timedelta(days=cycle)] = 0
 
     return (numberFulfilled(inventory, order), delivery)
+
 
 def numberFulfilled(inventory, order):
     if order==0:
@@ -49,7 +78,6 @@ def numberFulfilled(inventory, order):
     elif inventory > order:
         return order
     else:
-        # return float(inventory) / order
         return inventory
 
 
