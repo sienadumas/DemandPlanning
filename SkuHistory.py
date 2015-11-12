@@ -20,12 +20,12 @@ class SkuHistory:
 
     def find_threshold(self, percent):
         while self.fulfilled*100 < percent:
-            print(self.sku_number, self.fulfilled, self.threshold, percent)
+            #print(self.sku_number, self.fulfilled, self.threshold, percent)
             # delivery completely updated
             self.threshold += 1000
             self.inventory = self.threshold
             self.fulfilled = self.calculate_percent_filfilled()
-        print(self.sku_number, self.fulfilled, self.threshold, percent)
+        #print(self.sku_number, self.fulfilled, self.threshold, percent)
 
 
     def calculate_percent_filfilled(self):
@@ -75,9 +75,7 @@ class SkuHistory:
 
     def generate_vector(self):
         days_with_orders = sorted(self.orders.keys())
-        # start_date = self.todays_orders.keys()[0]
         start_date = days_with_orders[-1]
-        print(start_date)
 
         curr_inventory = self.inventory - self.orders[start_date] + self.delivery[start_date] #if we only have 2 years of data why do we assume to have the orders to leave the warehouse on the first day after our data ends?
         vector = []
@@ -96,7 +94,6 @@ class SkuHistory:
                     num_fulfilled += 1
             vector.append(num_fulfilled/periods)
             curr_inventory += self.delivery[start_date+datetime.timedelta(days=cycle_size+1)]
-        print(vector)
         return vector
 
 
