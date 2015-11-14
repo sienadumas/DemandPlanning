@@ -67,6 +67,16 @@ class AccountHistory:
                 vector = sku.generate_vector()
                 file_name = dir_name + "/" + str(item) + "_" + str(percent) + ".csv"
                 output = open(file_name, "w")
+                output.write("Minimum inventory to achieve " + str(percent) + "% fulfillment:\n")
+                output.write(str(sku.threshold) + "\n\n")
+                output.write("Probability vector:\n")
+                output.write(str(vector).replace("[","").replace("]","") + "\n\n")
+                output.write("Delivery:\n")
+                sorted_delivery_dates = sorted(sku.delivery.keys())
+                for date in sorted_delivery_dates:
+                    d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
+                    output.write(d + "," + str(sku.delivery[date]) + "\n")
+
                 
 
         # goes through each sku
