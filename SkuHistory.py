@@ -1,13 +1,15 @@
 import datetime
+import math
 
 class SkuHistory:
-    def __init__(self, sku_number, cycle=60, order_size=1000, inventory=5000):
+    def __init__(self, sku_number, cycle=60, order_size=1000, inventory=5000, week_order_days=[0,1,3,4,5,6]):
         self.sku_number = sku_number
         self.orders = dict([]) #date -> number
         self.threshold = 5000
         self.cycle = cycle
         self.order_size = order_size
-        self.inventory = inventory # live in future, simulated now
+        self.sim_inventory = inventory # live in future, simulated now
+        self.week_order_days = week_order_days
         self.delivery = dict([])
         self.todays_orders = None
         self.fulfilled = 0
@@ -23,12 +25,15 @@ class SkuHistory:
             #print(self.sku_number, self.fulfilled, self.threshold, percent)
             # delivery completely updated
             self.threshold += 1000
-            self.inventory = self.threshold
-            self.fulfilled = self.calculate_percent_filfilled()
+            # self.inventory = self.threshold
+            self.sim_inventory = 75000 # TODO: Omega
+            self.fulfilled = self.calculate_percent_fulfilled()
+        self.inventory = self.sim_inventory # TODO: realtime
         #print(self.sku_number, self.fulfilled, self.threshold, percent)
 
 
-    def calculate_percent_filfilled(self):
+    def calculate_percent_fulfilled(self):
+        self.delivery = dict([])
         dates = sorted(self.orders.keys())
         start_date = dates[0]
         end_date = dates[-1]
@@ -36,48 +41,67 @@ class SkuHistory:
         total_fulfillment = 0.0
         for day in range(delta.days + 1):
             d = start_date+datetime.timedelta(days=day)
-            if d in self.orders:
-                order = self.orders[d]
-            else:
-                order = 0
-            fulfilled = self.estimated_shortfall(d, order)
-            total_fulfillment += fulfilled
-            inv = (self.inventory-order)
-            if d in self.delivery:
-                inv += self.delivery[d]
-            self.inventory = max(inv, 0)
+            if d.weekday() in self.week_order_days:
+                order = self.orders[d] #d will always be in self.orders
+                fulfilled = self.estimated_shortfall(d, order)
+                total_fulfillment += fulfilled
+                inv = (self.sim_inventory-order)
+                if d in self.delivery:
+                    inv += self.delivery[d]
+                self.sim_inventory = max(inv, 0)
+        print "total_fulfillment: " + str(total_fulfillment)
+        print "total units: " + str(sum(self.orders.values()))
         percentage_fulfilled = total_fulfillment / sum(self.orders.values())
         return percentage_fulfilled
 
 
     # calculates the shortfall for today
     # appends it onto the manufacturing dictionary
-    def estimated_shortfall(self, day, order):        
-        estimate = self.inventory - order
+    def estimated_shortfall(self, day, order):  
+        estimate = self.sim_inventory - order
         for d in range(self.cycle):
             curr_day = day+datetime.timedelta(days=d)
             if curr_day in self.delivery:
                 estimate += self.delivery[curr_day]
+
+        #finds the date that delivery should arrive in (example: if it's a sunday increments until it reaches monday)
+        delivery_date = day+datetime.timedelta(days=self.cycle)
+        while delivery_date.weekday() not in self.week_order_days:
+            delivery_date += datetime.timedelta(days=1)
+
         if estimate < self.threshold:
-            self.delivery[day+datetime.timedelta(days=self.cycle)] = self.order_size
+            # delivery_amnt = self.order_size
+            delivery_amnt = math.ceil((self.threshold - estimate) / self.order_size) * self.order_size
         else:
-            self.delivery[day+datetime.timedelta(days=self.cycle)] = 0
+            delivery_amnt = 0
+
+        if delivery_date in self.delivery:
+            self.delivery[delivery_date] = self.delivery[delivery_date] + delivery_amnt
+        else:
+            self.delivery[delivery_date] = delivery_amnt
 
         return self.number_fulfilled(order)
 
     def number_fulfilled(self, order):
         if order == 0:
             return order
-        elif self.inventory > order:
+        elif self.sim_inventory > order:
             return order
         else:
-            return self.inventory
+            return self.sim_inventory
 
     def generate_vector(self):
         days_with_orders = sorted(self.orders.keys())
-        start_date = days_with_orders[-1]
+        #start_date = days_with_orders[-1]
+        start_date, ordered = self.todays_orders.items()[0]
+        if start_date in self.delivery:
+            delivered = self.delivery[start_date]
+        else:
+            delivered = 0.0
 
-        curr_inventory = self.inventory - self.orders[start_date] + self.delivery[start_date] #if we only have 2 years of data why do we assume to have the orders to leave the warehouse on the first day after our data ends?
+        #ordered = self.orders[start_date]
+
+        curr_inventory = self.sim_inventory - ordered + delivered #if we only have 2 years of data why do we assume to have the orders to leave the warehouse on the first day after our data ends?
         vector = []
         for cycle_size in range(self.cycle):
             periods = len(days_with_orders) - cycle_size
@@ -93,7 +117,10 @@ class SkuHistory:
                 if curr_inventory >= total_orders:
                     num_fulfilled += 1
             vector.append(num_fulfilled/periods)
-            curr_inventory += self.delivery[start_date+datetime.timedelta(days=cycle_size+1)]
+
+            delivery_date = start_date+datetime.timedelta(days=cycle_size+1)
+            if delivery_date in self.delivery:
+                curr_inventory += self.delivery[delivery_date]
         return vector
 
 
