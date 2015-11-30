@@ -70,26 +70,52 @@ class AccountHistory:
         if os.path.exists("results"):
             shutil.rmtree("results")
         os.mkdir("results")
-        # for item in self.past_orders.keys():
-        item = 866
-        dir_name = "results/"+"SKU_" + str(item)
-        os.mkdir(dir_name)
-        for percent in range(90, 100):
+        for item in self.past_orders.keys():
+            # dir_name = "results/"+"SKU_" + str(item)
+            # os.mkdir(dir_name)
+
             sku = self.past_orders[item]
-            sku.find_threshold(percent)
-            vector = sku.generate_vector()
-            self.delivery = dict([])
-            file_name = dir_name + "/" + str(item) + "_" + str(percent) + ".csv"
+            sku.find_threshold(90)
+            file_name = "results" + "/" + str(item) + ".txt"
             output = open(file_name, "w")
-            output.write("Minimum inventory to achieve " + str(percent) + "% fulfillment:\n")
-            output.write(str(sku.threshold) + "\n\n")
-            output.write("Probability vector:\n")
-            output.write(str(vector).replace("[","").replace("]","") + "\n\n")
-            output.write("Delivery:\n")
-            sorted_delivery_dates = sorted(sku.delivery.keys())
-            for date in sorted_delivery_dates:
-                d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
-                output.write(d + "," + str(sku.delivery[date]) + "\n")
+            output.write('{\n')
+            output.write('\tsku_id: ' + str(sku.sku_number) + '\n')
+            output.write('\tsku_name: test' + '\n')
+            output.write('\tinventory: ' + str(sku.sim_inventory) + '\n')
+            total = 0
+            for date in sorted(sku.delivery.keys()[len(sku.delivery.keys())-61:]):
+                total += sku.delivery[date]
+            output.write('\tplanned_production: ' + str(total) + '\n')
+            output.write('\t[\n')
+            for percent in range(90, 100):
+                # sku = self.past_orders[item]
+                sku.find_threshold(percent)
+                # vector = sku.generate_vector()
+                # self.delivery = dict([])
+                # file_name = dir_name + "/" + str(item) + "_" + str(percent) + ".csv"
+                # output = open(file_name, "w")
+                # output.write("Minimum inventory to achieve " + str(percent) + "% fulfillment:\n")
+                # output.write(str(sku.threshold) + "\n\n")
+                # output.write("Probability vector:\n")
+                # output.write(str(vector).replace("[","").replace("]","") + "\n\n")
+                # output.write("Delivery:\n")
+                # sorted_delivery_dates = sorted(sku.delivery.keys())
+                # for date in sorted_delivery_dates:
+                #     d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
+                #     output.write(d + "," + str(sku.delivery[date]) + "\n")
+
+                output.write('\t\t{\n')
+                output.write('\t\t\tfulfillment_target: ' + str(percent) + '\n')
+                output.write('\t\t\tsurplus: ' + str(sku.todays_surplus) + '\n')
+                output.write('\t\t\tsuggested_order: ' + str(sku.delivery[sorted(sku.delivery.keys())[-1]]) + '\n')
+                output.write('\t\t}')
+                if percent < 99:
+                    output.write(',\n')
+                else:
+                    output.write('\n')
+            output.write('\t]\n')
+            output.write('}\n')
+
 
                 
 

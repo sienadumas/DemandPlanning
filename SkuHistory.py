@@ -12,6 +12,7 @@ class SkuHistory:
         self.week_order_days = week_order_days
         self.delivery = dict([])
         self.todays_orders = None
+        self.todays_surplus = 0
         self.fulfilled = 0
 
     def update_orders(self, date, count):
@@ -71,8 +72,10 @@ class SkuHistory:
 
         if estimate < self.threshold:
             # delivery_amnt = self.order_size
+            self.todays_surplus = (self.threshold - estimate) * (-1)
             delivery_amnt = math.ceil((self.threshold - estimate) / self.order_size) * self.order_size
         else:
+            self.todays_surplus = 0
             delivery_amnt = 0
 
         if delivery_date in self.delivery:
