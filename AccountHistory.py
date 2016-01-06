@@ -151,6 +151,8 @@ class AccountHistory:
                 sku.find_threshold(percent)
 
                 output.write('\t\t{\n')
+                output.write('\t\t\tthreshold: ' + str(sku.threshold) + '\n')
+                output.write('\t\t\treal_fulfillment: ' + str(sku.fulfilled) + '\n')
                 output.write('\t\t\tfulfillment_target: ' + str(percent) + '\n')
                 output.write('\t\t\tsurplus: ' + str(sku.todays_surplus) + '\n')
                 output.write('\t\t\tsuggested_order: ' + str(sku.delivery[sorted(sku.delivery.keys())[-1]]) + '\n')
