@@ -11,12 +11,14 @@ test_train = True
 class AccountHistory:
 
     def __init__(self, file_name, account_name):
-        self.cycle, self.order_size, self.inventory, self.week_order_days = accounts.ACCOUNT[account_name]
+        self.cycle, self.order_size, self.inventory, self.week_order_days, file_name = accounts.ACCOUNT[account_name]
         self.past_orders = self.read_csv_data(file_name) # dictionary from item_num to sku object
         self.update_days_of_week()
         if test_train:
             self.generate_train_test()
 
+    # To read the test csv
+    # Will be replaced by a query call
     def read_csv_data(self, file_name):
         input_file = csv.DictReader(open(file_name))
         data = dict([])
@@ -34,7 +36,7 @@ class AccountHistory:
                 data[item_num] = sku
         return data
 
-
+    # Updates the orders mapping so that every day exists
     def update_days_of_week(self):
         for sku_num in self.past_orders:
             sku = self.past_orders[sku_num]
@@ -66,13 +68,71 @@ class AccountHistory:
                 valid_skus[item_num] = self.past_orders[item_num]
         self.past_orders = valid_skus
 
+    # output for the database
+    def write_to_db_file(self):
+        if os.path.exists("results"):
+            shutil.rmtree("results")
+        os.mkdir("results")
+        output = open("results/sku_analytics_test.csv", "w")
+        output.write('sku_id, fulfillment_rate, date, surplus, suggested_order, probability_vector, code_version, created_at\n')
+        for item in self.past_orders.keys():
+            for percent in range(90, 100):
+                sku = self.past_orders[item]
+                sku.find_threshold(percent)
+                vector = sku.generate_vector()
+                vector = '{' + str(vector).replace("[","").replace("]","") + '}'
+
+                for order_date,(delivery_date, surplus, suggested_order) in sku.surplus.items():
+                    output.write(str(sku.sku_number))
+                    output.write(', ' + str(percent))
+                    output.write(', ' + self.quotify(order_date))
+                    output.write(', ' + str(int(surplus)))
+                    output.write(', ' + str(int(suggested_order)))
+                    output.write(', ' + self.quotify(vector))
+                    output.write(', ' +  str(1))
+                    output.write(', ' + self.quotify(datetime.datetime.now()) + '\n')
+
+    def quotify(self, varchar):
+        return '"' + str(varchar) + '"'
+
     def write_to_file(self):
         if os.path.exists("results"):
             shutil.rmtree("results")
         os.mkdir("results")
         for item in self.past_orders.keys():
-            # dir_name = "results/"+"SKU_" + str(item)
-            # os.mkdir(dir_name)
+            dir_name = "results/"+"SKU_" + str(item)
+            os.mkdir(dir_name)
+            for percent in range(90, 100):
+                sku = self.past_orders[item]
+                sku.find_threshold(percent)
+                vector = sku.generate_vector()
+                file_name = dir_name + "/" + str(item) + "_" + str(percent) + ".csv"
+                output = open(file_name, "w")
+                output.write("Minimum inventory to achieve " + str(percent) + "% fulfillment:\n")
+                output.write(str(sku.threshold) + "\n\n")
+                output.write("Probability vector:\n")
+                output.write(str(vector).replace("[","").replace("]","") + "\n\n")
+                output.write("Delivery:\n")
+                sorted_delivery_dates = sorted(sku.delivery.keys())
+                for date in sorted_delivery_dates:
+                    d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
+                    output.write(d + "," + str(sku.delivery[date]) + "\n")
+
+                output.write("Inventory:\n")
+                sorted_inventory_dates = sorted(sku.test_inventories.keys())
+                for date in sorted_inventory_dates:
+                    d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
+                    output.write(d + "," + str(sku.test_inventories[date]) + "\n")
+
+                output.write('inventory sum ' + str(sum(sku.test_inventories.values())))
+                output.write('manufacture sum ' + str(sum(sku.delivery.values())))
+
+
+    def write_to_json(self):
+        if os.path.exists("results"):
+            shutil.rmtree("results")
+        os.mkdir("results")
+        for item in self.past_orders.keys():
 
             sku = self.past_orders[item]
             sku.find_threshold(90)
@@ -88,21 +148,7 @@ class AccountHistory:
             output.write('\tplanned_production: ' + str(total) + '\n')
             output.write('\t[\n')
             for percent in range(90, 100):
-                # sku = self.past_orders[item]
                 sku.find_threshold(percent)
-                # vector = sku.generate_vector()
-                # self.delivery = dict([])
-                # file_name = dir_name + "/" + str(item) + "_" + str(percent) + ".csv"
-                # output = open(file_name, "w")
-                # output.write("Minimum inventory to achieve " + str(percent) + "% fulfillment:\n")
-                # output.write(str(sku.threshold) + "\n\n")
-                # output.write("Probability vector:\n")
-                # output.write(str(vector).replace("[","").replace("]","") + "\n\n")
-                # output.write("Delivery:\n")
-                # sorted_delivery_dates = sorted(sku.delivery.keys())
-                # for date in sorted_delivery_dates:
-                #     d = str(date.month) + "/" + str(date.day) + "/" + str(date.year)
-                #     output.write(d + "," + str(sku.delivery[date]) + "\n")
 
                 output.write('\t\t{\n')
                 output.write('\t\t\tfulfillment_target: ' + str(percent) + '\n')
@@ -116,15 +162,3 @@ class AccountHistory:
             output.write('\t]\n')
             output.write('}\n')
 
-
-                
-
-        # goes through each sku
-        # for each threshold
-        # gets the manufacture orders/shortfall
-        # vector
-        # writes it to a file
-
-        # for each threshold, shortfall/vector -- 11 files
-        # theoretical history
-        # actual history
