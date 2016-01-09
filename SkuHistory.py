@@ -2,7 +2,7 @@ import datetime
 import math
 
 class SkuHistory:
-    def __init__(self, sku_number, cycle=60, order_size=1000, inventory=5000, week_order_days=[0,1,3,4,5,6]):
+    def __init__(self, sku_number, cycle=60, order_size=1000, inventory=5000, week_order_days=[0,1,2,3,4,5,6]):
         self.sku_number = sku_number
         self.orders = dict([]) #date -> number
         self.threshold = 5000
@@ -90,7 +90,7 @@ class SkuHistory:
     def number_fulfilled(self, order):
         if order == 0:
             return order
-        elif self.sim_inventory > order:
+        elif self.sim_inventory >= order:
             return order
         else:
             return self.sim_inventory

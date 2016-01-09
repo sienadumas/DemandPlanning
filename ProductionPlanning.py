@@ -9,8 +9,8 @@ def main():
     name = sys.argv[1] #plum
     version = sys.argv[2] #simulation
 
-    past_orders = AccountHistory(name)
-    past_orders.write_to_db_file()
+    past_orders = AccountHistory("Plum_OrderData.csv", name)
+    past_orders.write_to_file()
 
 
 
